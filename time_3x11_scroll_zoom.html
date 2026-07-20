@@ -1,17 +1,36 @@
+// ------------------------------------------------------
+// FULL RESPO VIEWER (REAL + BIL)
+// ------------------------------------------------------
+
+const RESPO_NAMES = ["REAL", "BIL"];
+
+// JSON laden
 async function loadRespo(name){
-  const r = await fetch(name + ".json");
-  return await r.json();
+  try {
+    const r = await fetch(name + ".json");
+    return await r.json();
+  } catch(e){
+    return { NAME:name, MISS:true };
+  }
 }
 
+// RESPO → Raster
 async function buildMask(){
-  const names = ["REAL","BIL"];
   const mask = [];
 
-  for(const n of names){
+  for(const n of RESPO_NAMES){
     const res = await loadRespo(n);
 
+    if(res.MISS){
+      mask.push({
+        pos: [1,1],
+        refs: [n + " MISSING"]
+      });
+      continue;
+    }
+
     mask.push({
-      pos: [res.RAUM.X, res.RAUM.Z],   // RESPO → Raster
+      pos: [res.RAUM.X, res.RAUM.Z],
       refs: [res.NAME]
     });
   }
@@ -19,4 +38,5 @@ async function buildMask(){
   return mask;
 }
 
+// Viewer starten
 buildMask().then(mask => render3x11(mask));
