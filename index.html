@@ -25,23 +25,13 @@
 
 <div id="output"></div>
 
-<script src="/fin.e.js"></script>
-
 <script>
 // ------------------------------------------------------
 // RESPO-Liste (ALLE Cluster)
 // ------------------------------------------------------
 const RESPO_NAMES = [
-  "AIR",
-  "boerse",
-  "markt3",
-  "HOME",
-  "USE",
-  "ACSH",
   "REAL",
-  "BIL",
-  "DU",
-  "NG"
+  "BIL"
 ];
 
 // ------------------------------------------------------
@@ -49,7 +39,7 @@ const RESPO_NAMES = [
 // ------------------------------------------------------
 async function loadRespo(name){
   try {
-    const res = await fetch(`/RESPO/${name}.json`);
+    const res = await fetch(name + ".json");   // FIXED
     return await res.json();
   } catch(e){
     return { NAME:name, MISS:true };
@@ -65,6 +55,22 @@ async function loadAllRespos(){
 }
 
 // ------------------------------------------------------
+// Dummy GHOST-SCAN (weil fin.e.js fehlt)
+// ------------------------------------------------------
+function GHOST_SCAN_REAL(r){
+  return {
+    NAME: r.NAME,
+    ID: r.ID,
+    RAUM: r.RAUM,
+    STATUS: r.STATUS,
+    RESULT: r.SOLL === "aktiv" ? "OK" : "HELFEN",
+    OUT: r.VERWALTUNG3,
+    WAHRHEIT: r.WAHRHEIT,
+    IST_IST: r.IST_IST
+  };
+}
+
+// ------------------------------------------------------
 // Renderer
 // ------------------------------------------------------
 function renderScan(scan){
@@ -77,18 +83,17 @@ function renderScan(scan){
 
     let statusClass = "ok";
     if(r.RESULT === "HELFEN") statusClass = "help";
-    if(r.ERROR === true) statusClass = "error";
     if(r.MISS === true) statusClass = "error";
 
     box.innerHTML = `
       <h2 class="${statusClass}">${r.NAME}</h2>
       <p><b>ID:</b> ${r.ID}</p>
-      <p><b>LAGE:</b> ${r.RAUM ? JSON.stringify(r.RAUM) : "(keine LAGE)"}</p>
+      <p><b>LAGE:</b> ${JSON.stringify(r.RAUM)}</p>
       <p><b>STATUS:</b> ${r.STATUS}</p>
       <p><b>RESULT:</b> ${r.RESULT}</p>
       <p><b>OUT:</b> ${JSON.stringify(r.OUT)}</p>
-      <p><b>REAL:</b> ${r.WAHRHEIT || "?"}</p>
-      <p><b>EDIT:</b> ${r.IST_IST || "?"}</p>
+      <p><b>REAL:</b> ${r.WAHRHEIT}</p>
+      <p><b>EDIT:</b> ${r.IST_IST}</p>
     `;
 
     out.appendChild(box);
