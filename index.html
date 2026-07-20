@@ -2,16 +2,17 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>GHOST-SCAN – Systemlage</title>
+<title>GHOST‑SCAN – Systemlage</title>
 
 <style>
   body { font-family: Arial; background:#111; color:#eee; }
-  h1 { text-align:center; }
+  h1 { text-align:center; margin-top:20px; }
   .respo-box {
     border:1px solid #444;
-    padding:10px;
-    margin:10px;
-    background:#222;
+    padding:12px;
+    margin:12px;
+    background:#1a1a1a;
+    border-radius:6px;
   }
   .ok { color:#00ff88; }
   .help { color:#ffcc00; }
@@ -27,37 +28,35 @@
 
 <script>
 // ------------------------------------------------------
-// RESPO-Liste (ALLE Cluster)
+// RESPO‑Module (du kannst erweitern)
 // ------------------------------------------------------
-const RESPO_NAMES = [
-  "REAL",
-  "BIL"
-];
+const RESPO_NAMES = ["REAL", "BIL"];
 
 // ------------------------------------------------------
-// Loader
+// JSON‑Loader
 // ------------------------------------------------------
 async function loadRespo(name){
   try {
-    const res = await fetch(name + ".json");   // FIXED
+    const res = await fetch(name + ".json");
     return await res.json();
   } catch(e){
     return { NAME:name, MISS:true };
   }
 }
 
-async function loadAllRespos(){
-  const respos = [];
-  for(const n of RESPO_NAMES){
-    respos.push(await loadRespo(n));
+// ------------------------------------------------------
+// GHOST‑SCAN (lokale Version ohne fin.e.js)
+// ------------------------------------------------------
+function ghostScan(r){
+  if(r.MISS){
+    return {
+      NAME: r.NAME,
+      RESULT: "FEHLT",
+      ERROR: true,
+      RAUM: "(keine Daten)"
+    };
   }
-  return respos;
-}
 
-// ------------------------------------------------------
-// Dummy GHOST-SCAN (weil fin.e.js fehlt)
-// ------------------------------------------------------
-function GHOST_SCAN_REAL(r){
   return {
     NAME: r.NAME,
     ID: r.ID,
@@ -66,34 +65,34 @@ function GHOST_SCAN_REAL(r){
     RESULT: r.SOLL === "aktiv" ? "OK" : "HELFEN",
     OUT: r.VERWALTUNG3,
     WAHRHEIT: r.WAHRHEIT,
-    IST_IST: r.IST_IST
+    EDIT: r.IST_IST
   };
 }
 
 // ------------------------------------------------------
 // Renderer
 // ------------------------------------------------------
-function renderScan(scan){
+function renderScan(list){
   const out = document.getElementById("output");
   out.innerHTML = "";
 
-  scan.forEach(r => {
+  list.forEach(r => {
     const box = document.createElement("div");
     box.className = "respo-box";
 
-    let statusClass = "ok";
-    if(r.RESULT === "HELFEN") statusClass = "help";
-    if(r.MISS === true) statusClass = "error";
+    let cls = "ok";
+    if(r.RESULT === "HELFEN") cls = "help";
+    if(r.RESULT === "FEHLT") cls = "error";
 
     box.innerHTML = `
-      <h2 class="${statusClass}">${r.NAME}</h2>
-      <p><b>ID:</b> ${r.ID}</p>
+      <h2 class="${cls}">${r.NAME}</h2>
+      <p><b>ID:</b> ${r.ID || "-"}</p>
       <p><b>LAGE:</b> ${JSON.stringify(r.RAUM)}</p>
-      <p><b>STATUS:</b> ${r.STATUS}</p>
+      <p><b>STATUS:</b> ${r.STATUS || "-"}</p>
       <p><b>RESULT:</b> ${r.RESULT}</p>
-      <p><b>OUT:</b> ${JSON.stringify(r.OUT)}</p>
-      <p><b>REAL:</b> ${r.WAHRHEIT}</p>
-      <p><b>EDIT:</b> ${r.IST_IST}</p>
+      <p><b>OUT:</b> ${JSON.stringify(r.OUT || {})}</p>
+      <p><b>REAL:</b> ${r.WAHRHEIT || "-"}</p>
+      <p><b>EDIT:</b> ${r.EDIT || "-"}</p>
     `;
 
     out.appendChild(box);
@@ -103,10 +102,15 @@ function renderScan(scan){
 // ------------------------------------------------------
 // Start
 // ------------------------------------------------------
-loadAllRespos().then(respos => {
-  const scan = respos.map(r => GHOST_SCAN_REAL(r));
-  renderScan(scan);
-});
+(async () => {
+  const loaded = [];
+  for(const n of RESPO_NAMES){
+    loaded.push(await loadRespo(n));
+  }
+
+  const scanned = loaded.map(r => ghostScan(r));
+  renderScan(scanned);
+})();
 </script>
 
 </body>
