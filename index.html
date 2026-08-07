@@ -1,52 +1,3 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>GHOST‑SCAN – Systemlage</title>
-
-<style>
-  body { font-family: Arial; background:#111; color:#eee; }
-  h1 { text-align:center; margin-top:20px; }
-  .respo-box {
-    border:1px solid #444;
-    padding:12px;
-    margin:12px;
-    background:#1a1a1a;
-    border-radius:6px;
-  }
-  .ok { color:#00ff88; }
-  .help { color:#ffcc00; }
-  .error { color:#ff4444; }
-</style>
-</head>
-
-<body>
-
-<h1>GHOST‑SCAN – Systemlage</h1>
-
-<div id="output"></div>
-
-<script>
-// ------------------------------------------------------
-// RESPO‑Module (du kannst erweitern)
-// ------------------------------------------------------
-const RESPO_NAMES = ["REAL", "BIL"];
-
-// ------------------------------------------------------
-// JSON‑Loader
-// ------------------------------------------------------
-async function loadRespo(name){
-  try {
-    const res = await fetch(name + ".json");
-    return await res.json();
-  } catch(e){
-    return { NAME:name, MISS:true };
-  }
-}
-
-// ------------------------------------------------------
-// GHOST‑SCAN (lokale Version ohne fin.e.js)
-// ------------------------------------------------------
 function ghostScan(r){
   if(r.MISS){
     return {
@@ -57,61 +8,25 @@ function ghostScan(r){
     };
   }
 
+  const WETTE = r.IST_IST !== r.SOLL;
+  const SCORE =
+      (r.STATUS === "1" ? 1 : 0) +
+      (r.VERWALTUNG3.SET.UP ? 1 : 0) +
+      (r.VERWALTUNG3.IO.IN ? 1 : 0) +
+      (r.VERWALTUNG3.EXE.RUN ? 1 : 0) +
+      (r.WAHRHEIT === "REAL" ? 1 : 0) +
+      (r.RAUM.X + r.RAUM.Z);
+
   return {
     NAME: r.NAME,
     ID: r.ID,
     RAUM: r.RAUM,
     STATUS: r.STATUS,
-    RESULT: r.SOLL === "aktiv" ? "OK" : "HELFEN",
+    RESULT: WETTE ? "HELFEN" : "OK",
+    SCORE,
+    WETTE,
     OUT: r.VERWALTUNG3,
     WAHRHEIT: r.WAHRHEIT,
     EDIT: r.IST_IST
   };
 }
-
-// ------------------------------------------------------
-// Renderer
-// ------------------------------------------------------
-function renderScan(list){
-  const out = document.getElementById("output");
-  out.innerHTML = "";
-
-  list.forEach(r => {
-    const box = document.createElement("div");
-    box.className = "respo-box";
-
-    let cls = "ok";
-    if(r.RESULT === "HELFEN") cls = "help";
-    if(r.RESULT === "FEHLT") cls = "error";
-
-    box.innerHTML = `
-      <h2 class="${cls}">${r.NAME}</h2>
-      <p><b>ID:</b> ${r.ID || "-"}</p>
-      <p><b>LAGE:</b> ${JSON.stringify(r.RAUM)}</p>
-      <p><b>STATUS:</b> ${r.STATUS || "-"}</p>
-      <p><b>RESULT:</b> ${r.RESULT}</p>
-      <p><b>OUT:</b> ${JSON.stringify(r.OUT || {})}</p>
-      <p><b>REAL:</b> ${r.WAHRHEIT || "-"}</p>
-      <p><b>EDIT:</b> ${r.EDIT || "-"}</p>
-    `;
-
-    out.appendChild(box);
-  });
-}
-
-// ------------------------------------------------------
-// Start
-// ------------------------------------------------------
-(async () => {
-  const loaded = [];
-  for(const n of RESPO_NAMES){
-    loaded.push(await loadRespo(n));
-  }
-
-  const scanned = loaded.map(r => ghostScan(r));
-  renderScan(scanned);
-})();
-</script>
-
-</body>
-</html>
