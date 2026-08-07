@@ -2,152 +2,97 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>NC‑LEMMINGE / AUTO‑ENGINE</title>
-
+<title>BIL / RUN 8 / Pipeline 4→0→1→2</title>
+<link rel="stylesheet" href="16.css">
 <style>
-  body { background:#111; color:#eee; font-family:monospace; }
-  .board { padding:20px; border:1px solid #444; margin:20px; }
-  .entry { padding:6px; margin:4px 0; border-bottom:1px solid #333; }
-  .question { color:#6cf; }
-  .value { color:#fc6; }
-  .lemming { color:#9f6; }
-  .aua { color:#f66; }
+  body { background:#000; color:#0f0; font-family:monospace; }
+  #out { padding:20px; border:1px solid #0f0; margin:20px; white-space:pre; }
 </style>
 </head>
 
 <body>
 
-<h1>NC‑LEMMINGE / AUTO‑ENGINE</h1>
-<div id="board" class="board"></div>
+<h1>BIL / RUN 8 / Pipeline 4→0→1→2</h1>
+<div id="out"></div>
 
 <script>
 
-// ------------------------------------------------------
-// RESPO / AXIOM-PRÜFER
-// ------------------------------------------------------
-function ghostScan(r){
-  if(r.MISS){
-    return {
-      NAME: r.NAME,
-      RESULT: "FEHLT",
-      ERROR: true,
-      RAUM: "(keine Daten)"
-    };
-  }
+async function LOAD_BIL(){
+  const RAUM = await (await fetch("RAUM.json")).json();
+  const REAL = await (await fetch("REAL.json")).json();
+  const BIL  = await (await fetch("BIL.json")).json();
 
-  const WETTE = r.IST_IST !== r.SOLL;
+  const LIST = await (await fetch("LIST.rom")).text();
+  const RUN  = await (await fetch("RUN.rom")).text();
+  const ROM16 = await (await fetch("16k.ROM")).text();
 
-  const SCORE =
-      (r.STATUS === "1" ? 1 : 0) +
-      (r.VERWALTUNG3.SET.UP ? 1 : 0) +
-      (r.VERWALTUNG3.IO.IN ? 1 : 0) +
-      (r.VERWALTUNG3.EXE.RUN ? 1 : 0) +
-      (r.WAHRHEIT === "REAL" ? 1 : 0) +
-      (r.RAUM.X + r.RAUM.Z);
+  PIPELINE(RAUM, REAL, BIL, LIST, RUN, ROM16);
+}
 
-  return {
-    NAME: r.NAME,
-    ID: r.ID,
-    RAUM: r.RAUM,
-    STATUS: r.STATUS,
-    RESULT: WETTE ? "HELFEN" : "OK",
-    SCORE,
-    WETTE,
-    OUT: r.VERWALTUNG3,
-    WAHRHEIT: r.WAHRHEIT,
-    EDIT: r.IST_IST
+function PIPELINE(RAUM, REAL, BIL, LIST, RUN, ROM16){
+
+  const out = document.getElementById("out");
+  out.innerHTML = "";
+
+  const V4 = {
+    X: RAUM.X,
+    Z: RAUM.Z,
+    W: REAL.WAHRHEIT,
+    S: REAL.STATUS
   };
+
+  const emergent = {
+    ECHO: BIL.ECHO,
+    PULSE: RUN.includes("8") ? "RUN8" : "RUN"
+  };
+
+  const SUPERLAGE = {
+    E0: BIL.SUPERLAGE,
+    DRIFT: BIL.DRIFT,
+    FALL: BIL.FALL
+  };
+
+  const ORBIT = REAL.ORBIT;
+
+  const PULSE = RUN.includes("8") ? "Tock" : "Tick";
+
+  const STATION = {
+    S1: BIL.ST1,
+    S2: BIL.ST2,
+    S3: BIL.ST3,
+    S4: BIL.ST4
+  };
+
+  const RASTER = {
+    R1: V4.X,
+    R2: V4.Z,
+    R3: emergent.ECHO,
+    R4: emergent.PULSE,
+    R5: SUPERLAGE.DRIFT,
+    R6: SUPERLAGE.FALL
+  };
+
+  out.innerHTML += "PIPELINE 4 → 0 → 1 → 2\n\n";
+  out.innerHTML += "4 (VECTOR)\n";
+  out.innerHTML += JSON.stringify(V4, null, 2) + "\n\n";
+
+  out.innerHTML += "0 (SUPERLAGE)\n";
+  out.innerHTML += JSON.stringify(SUPERLAGE, null, 2) + "\n\n";
+
+  out.innerHTML += "1 (ORBIT)\n";
+  out.innerHTML += JSON.stringify(ORBIT, null, 2) + "\n\n";
+
+  out.innerHTML += "2 (PULSE / RUN 8)\n";
+  out.innerHTML += JSON.stringify({PULSE}, null, 2) + "\n\n";
+
+  out.innerHTML += "STATIONEN\n";
+  out.innerHTML += JSON.stringify(STATION, null, 2) + "\n\n";
+
+  out.innerHTML += "RASTER (6e)\n";
+  out.innerHTML += JSON.stringify(RASTER, null, 2) + "\n\n";
 }
 
-// ------------------------------------------------------
-// BIL SUPERPOSITION / MAUS
-// ------------------------------------------------------
-async function BIL_MAUS_START() {
-  try {
-    const r = await fetch("./BIL/RAUM.json");
-    const data = await r.json();
-
-    const out = ghostScan(data);
-
-    window.BIL_RAUM   = out.RAUM;
-    window.BIL_STATUS = out.STATUS;
-    window.BIL_SCORE  = out.SCORE;
-    window.BIL_WETTE  = out.WETTE;
-    window.BIL_RESULT = out.RESULT;
-
-    NC_LEMMINGE(out);
-
-  } catch(e) {
-    console.error("BIL-MAUS FEHLER:", e);
-  }
-}
-
-// ------------------------------------------------------
-// NC‑LEMMINGE (laufen alle Wege ab)
-// ------------------------------------------------------
-function NC_LEMMINGE(out){
-
-  const board = document.getElementById("board");
-  board.innerHTML = "";
-
-  function ask(q, v){
-    const div = document.createElement("div");
-    div.className = "entry";
-    div.innerHTML =
-      `<span class='question'>${q}</span> 
-       <span class='value'>${v}</span>`;
-    board.appendChild(div);
-  }
-
-  function lemming(path){
-    const div = document.createElement("div");
-    div.className = "entry";
-    div.innerHTML =
-      `<span class='lemming'>LEMMING geht Weg:</span> 
-       <span class='value'>${path}</span>`;
-    board.appendChild(div);
-  }
-
-  function aua(flag){
-    const div = document.createElement("div");
-    div.className = "entry";
-    div.innerHTML =
-      `<span class='aua'>AUA‑Feedback:</span> 
-       <span class='value'>${flag}</span>`;
-    board.appendChild(div);
-  }
-
-  // Lemminge laufen alle Wege ab
-  lemming("RAUM → X=" + out.RAUM.X);
-  lemming("RAUM → Z=" + out.RAUM.Z);
-  lemming("WETTE → " + out.WETTE);
-  lemming("SCORE → " + out.SCORE);
-  lemming("SUPERPOSITION → " + out.RESULT);
-
-  // AUA‑Fähigkeit (Engine‑Feedback)
-  if(out.WETTE){
-    aua("WETTE‑KOLLISION");
-  } else {
-    aua("KEINE KOLLISION");
-  }
-
-  if(out.SCORE < 10){
-    aua("SCORE‑UNTERLAUF");
-  } else {
-    aua("SCORE‑OK");
-  }
-
-  // MAIBOARD‑Fragen
-  ask("Welche LISTE schlummert in index.html?", "BIL.json, REAL.json, RAUM.json");
-  ask("Welcher INDEX ist aktiv?", out.ID);
-  ask("Welche WAHRHEIT trägt der Raum?", out.WAHRHEIT);
-  ask("Welche Engine‑Frage stellt sich als Nächstes?", "LEMMING‑NC‑ATTACK?");
-}
-
-// ------------------------------------------------------
-// Starten
-// ------------------------------------------------------
-BIL_MAUS_START();
+LOAD_BIL();
 
 </script>
 
