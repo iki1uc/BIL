@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>NC‑MAIBOARD / AUTO‑ENGINE</title>
+<title>NC‑LEMMINGE / AUTO‑ENGINE</title>
 
 <style>
   body { background:#111; color:#eee; font-family:monospace; }
@@ -10,12 +10,14 @@
   .entry { padding:6px; margin:4px 0; border-bottom:1px solid #333; }
   .question { color:#6cf; }
   .value { color:#fc6; }
+  .lemming { color:#9f6; }
+  .aua { color:#f66; }
 </style>
 </head>
 
 <body>
 
-<h1>NC‑MAIBOARD / AUTO‑ENGINE</h1>
+<h1>NC‑LEMMINGE / AUTO‑ENGINE</h1>
 <div id="board" class="board"></div>
 
 <script>
@@ -73,7 +75,7 @@ async function BIL_MAUS_START() {
     window.BIL_WETTE  = out.WETTE;
     window.BIL_RESULT = out.RESULT;
 
-    NC_MAIBOARD(out);
+    NC_LEMMINGE(out);
 
   } catch(e) {
     console.error("BIL-MAUS FEHLER:", e);
@@ -81,9 +83,9 @@ async function BIL_MAUS_START() {
 }
 
 // ------------------------------------------------------
-// NC‑MAIBOARD (FRAGT statt antwortet)
+// NC‑LEMMINGE (laufen alle Wege ab)
 // ------------------------------------------------------
-function NC_MAIBOARD(out){
+function NC_LEMMINGE(out){
 
   const board = document.getElementById("board");
   board.innerHTML = "";
@@ -97,23 +99,49 @@ function NC_MAIBOARD(out){
     board.appendChild(div);
   }
 
-  // LISTEN & INDEXE aus index.html
+  function lemming(path){
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML =
+      `<span class='lemming'>LEMMING geht Weg:</span> 
+       <span class='value'>${path}</span>`;
+    board.appendChild(div);
+  }
+
+  function aua(flag){
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML =
+      `<span class='aua'>AUA‑Feedback:</span> 
+       <span class='value'>${flag}</span>`;
+    board.appendChild(div);
+  }
+
+  // Lemminge laufen alle Wege ab
+  lemming("RAUM → X=" + out.RAUM.X);
+  lemming("RAUM → Z=" + out.RAUM.Z);
+  lemming("WETTE → " + out.WETTE);
+  lemming("SCORE → " + out.SCORE);
+  lemming("SUPERPOSITION → " + out.RESULT);
+
+  // AUA‑Fähigkeit (Engine‑Feedback)
+  if(out.WETTE){
+    aua("WETTE‑KOLLISION");
+  } else {
+    aua("KEINE KOLLISION");
+  }
+
+  if(out.SCORE < 10){
+    aua("SCORE‑UNTERLAUF");
+  } else {
+    aua("SCORE‑OK");
+  }
+
+  // MAIBOARD‑Fragen
   ask("Welche LISTE schlummert in index.html?", "BIL.json, REAL.json, RAUM.json");
   ask("Welcher INDEX ist aktiv?", out.ID);
-
-  // RESPO
   ask("Welche WAHRHEIT trägt der Raum?", out.WAHRHEIT);
-  ask("Welche WETTE ist gesetzt?", out.WETTE);
-  ask("Welcher SCORE wurde erzeugt?", out.SCORE);
-
-  // RAUM
-  ask("Welche RAUM‑Koordinate ist aktiv?", `X=${out.RAUM.X}, Z=${out.RAUM.Z}`);
-
-  // SUPERPOSITION
-  ask("Welche Superposition ist aktiv?", out.RESULT);
-
-  // ENGINE
-  ask("Welche Engine‑Frage stellt sich als Nächstes?", "AUTO‑NC‑ATTACK?");
+  ask("Welche Engine‑Frage stellt sich als Nächstes?", "LEMMING‑NC‑ATTACK?");
 }
 
 // ------------------------------------------------------
