@@ -7,6 +7,28 @@ function ghostScan(r){
       RAUM: "(keine Daten)"
     };
   }
+async function BIL_MAUS_START() {
+  try {
+    const r = await fetch("./BIL/RAUM.json");
+    const data = await r.json();
+
+    const out = ghostScan(data);
+
+    window.BIL_RAUM = out.RAUM;
+    window.BIL_STATUS = out.STATUS;
+    window.BIL_SCORE = out.SCORE;
+    window.BIL_WETTE = out.WETTE;
+    window.BIL_RESULT = out.RESULT;
+
+    console.log("BIL-MAUS AKTIV:", window.BIL_RAUM);
+  } catch(e) {
+    console.error("BIL-MAUS FEHLER:", e);
+  }
+}
+
+BIL_MAUS_START();
+
+
 
   const WETTE = r.IST_IST !== r.SOLL;
   const SCORE =
