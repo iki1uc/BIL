@@ -2,118 +2,349 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>RESPO · SUPERLAGE · 3×11 Viewer</title>
-
-<link rel="stylesheet" href="16.css">
+<title>RESPO · SUPERLAGE · 3×11 · INTERAKTIV</title>
 
 <style>
+/* ===== BASIS ===== */
+* { box-sizing:border-box; }
 body {
-    background:#000;
-    color:#0ff;
-    font-family:Consolas;
-    margin:0;
-    overflow:hidden;
+    background:#000; color:#0ff; font-family:Consolas, monospace;
+    margin:0; overflow:hidden; height:100vh;
+    display:grid;
+    grid-template-rows: auto 1fr auto;
 }
 
+/* ===== KONTROLLLEISTE ===== */
+#controls {
+    background:#0a0a1a;
+    padding:12px 20px;
+    border-bottom:2px solid #0ff;
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px 20px;
+    align-items:center;
+}
+
+#controls label {
+    font-size:12px;
+    color:#888;
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+#controls input[type="range"] {
+    width:100px;
+    background:#222;
+    height:4px;
+    -webkit-appearance:none;
+}
+#controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none;
+    width:12px; height:12px;
+    border-radius:50%;
+    background:#0ff;
+    cursor:pointer;
+}
+
+.btn {
+    background:#111;
+    border:1px solid #0ff;
+    color:#0ff;
+    padding:4px 16px;
+    cursor:pointer;
+    font-family:Consolas;
+    font-size:13px;
+    transition:all 0.2s;
+    border-radius:4px;
+}
+.btn:hover { background:#0ff; color:#000; }
+.btn.active { background:#0ff; color:#000; box-shadow:0 0 20px #0ff; }
+.btn.danger { border-color:#f44; color:#f44; }
+.btn.danger:hover { background:#f44; color:#000; }
+
+#status {
+    color:#6cf;
+    font-size:13px;
+    margin-left:auto;
+}
+
+/* ===== GRID ===== */
 #grid {
     display:grid;
     grid-template-columns:repeat(11, 1fr);
-    grid-auto-rows:200px;
+    grid-auto-rows:1fr;
     gap:4px;
     padding:10px;
-    height:100vh;
     overflow-y:scroll;
-    transform:scale(1);
-    transition:transform 0.3s ease;
+    transition:transform 0.3s ease, filter 0.3s ease;
+    height:100%;
 }
 
 .cell {
     background:#111;
     border:1px solid #333;
-    padding:10px;
+    padding:8px;
     overflow:auto;
+    font-size:11px;
+    transition:all 0.3s ease;
+    position:relative;
+}
+.cell .label {
+    color:#6cf;
+    font-weight:bold;
+    font-size:10px;
+    border-bottom:1px solid #333;
+    padding-bottom:4px;
+    margin-bottom:4px;
+}
+.cell .content {
+    font-size:10px;
+    color:#aaa;
     white-space:pre-wrap;
+    word-break:break-all;
+}
+.cell .badge {
+    position:absolute;
+    top:4px; right:6px;
+    font-size:8px;
+    color:#666;
 }
 
-#grid.zoom {
-    transform:scale(1.4);
+/* ===== ZOOM & FILTER ===== */
+#grid.zoom { transform:scale(1.4); }
+#grid.filter-3 { filter:blur(2px) brightness(1.2); }
+#grid.filter-9 { filter:blur(4px) brightness(1.4); }
+#grid.filter-27 { filter:blur(6px) brightness(1.6); }
+#grid.filter-81 { filter:blur(8px) brightness(1.8); }
+
+/* ===== REAL-TRIGGER ===== */
+#grid.real-mode .cell { border-color:#0ff; box-shadow:0 0 10px #0ff3; }
+#grid.run-mode .cell { animation:pulse 0.5s infinite alternate; }
+@keyframes pulse { from { border-color:#333; } to { border-color:#f0f; } }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:800px) {
+    #controls { flex-direction:column; align-items:stretch; }
+    #controls label { justify-content:space-between; }
+    #controls input[type="range"] { width:100%; }
+    #status { margin-left:0; text-align:center; }
+    .cell { font-size:9px; }
+    .cell .content { font-size:8px; }
 }
 </style>
+</head>
+
+<body>
+
+<!-- ===== KONTROLLLEISTE ===== -->
+<div id="controls">
+    <span style="color:#6cf;font-weight:bold;">⚡ SUPERLAGE</span>
+
+    <!-- 3er-Ebene -->
+    <label>3 <input type="range" id="slider-3" min="0" max="3" value="1" step="0.1"></label>
+    <!-- 9er-Ebene -->
+    <label>9 <input type="range" id="slider-9" min="0" max="3" value="1" step="0.1"></label>
+    <!-- 27er-Ebene -->
+    <label>27 <input type="range" id="slider-27" min="0" max="3" value="1" step="0.1"></label>
+    <!-- 81er-Ebene -->
+    <label>81 <input type="range" id="slider-81" min="0" max="3" value="1" step="0.1"></label>
+
+    <!-- Knöpfe -->
+    <button class="btn" id="btn-real">REAL</button>
+    <button class="btn" id="btn-run">RUN</button>
+    <button class="btn" id="btn-go">GO</button>
+    <button class="btn danger" id="btn-reset">RESET</button>
+    <button class="btn" id="btn-list">RUNE.LIST</button>
+
+    <span id="status">● idle</span>
+</div>
+
+<!-- ===== GRID ===== -->
+<div id="grid"></div>
 
 <script type="module">
-import { move1 } from "./move1.js";
-import { move2 } from "./move2.js";
-import { move3 } from "./move3.js";
+
+// ============================================================
+// 1. KONFIGURATION
+// ============================================================
+const FILES = [
+    "BIL.json", "RAUM.json", "REAL.json", "GO.rom", "RUN.rom",
+    "RUNE.RUN.js", "RUNE.LIST.js", "LIST.rom", "ID.html",
+    "index.html", "RUNE.LIST.rom", "16.css", "16k.ROM",
+    "RAW.mp3", "time_3x11_scroll_zoom.html"
+];
+
+// ============================================================
+// 2. LADEN & RENDERN
+// ============================================================
+const grid = document.getElementById("grid");
 
 async function loadFile(path) {
     try {
         const res = await fetch(path);
         const txt = await res.text();
-        return {path, txt};
+        return { path, txt };
     } catch(e) {
-        return {path, txt:"[Fehler beim Laden]"};
+        return { path, txt: "[Fehler beim Laden]" };
     }
 }
 
-async function start() {
-
-    const files = [
-        "BIL.json",
-        "RAUM.json",
-        "REAL.json",
-        "GO.rom",
-        "RUN.rom",
-        "RUNE.RUN.js",
-        "RUNE.LIST.js",
-        "LIST.rom",
-        "ID.html",
-        "index.html",
-        "RUNE.LIST.rom",
-        "16.css",
-        "16k.ROM",
-        "RAW.mp3",
-        "time_3x11_scroll_zoom.html"
-    ];
-
-    const grid = document.getElementById("grid");
+async function renderGrid(scale = 1) {
+    grid.innerHTML = "";
+    grid.style.transform = `scale(${scale})`;
 
     let i = 0;
-    for (const f of files) {
+    for (const f of FILES) {
         const data = await loadFile(f);
-
         const cell = document.createElement("div");
         cell.className = "cell";
-        cell.innerHTML = `# ${data.path}\n\n${data.txt}`;
-
-        // org / arg / arg3te layer separation
+        cell.innerHTML = `
+            <div class="label"># ${data.path}</div>
+            <div class="content">${data.txt.slice(0, 120)}${data.txt.length > 120 ? '…' : ''}</div>
+            <div class="badge">${i}</div>
+        `;
+        // 3er-System speichern
         cell.dataset.org = i;
         cell.dataset.arg = i % 3;
         cell.dataset.arg3te = (i % 3) * 0.333;
-
-        // Shuffle‑Dance Moves
-        if (cell.dataset.arg == 0) move1(cell);   // Running-Man
-        if (cell.dataset.arg == 1) move2(cell);   // T-Step
-        if (cell.dataset.arg == 2) move3(cell);   // Glide
-
         grid.appendChild(cell);
         i++;
     }
-
-    // loop animation for superlage
-    setInterval(() => {
-        grid.classList.toggle("zoom");
-    }, 3000);
 }
 
-start();
+renderGrid(1);
+
+// ============================================================
+// 3. REGLER (3/9/27/81)
+// ============================================================
+const sliders = {
+    '3': document.getElementById('slider-3'),
+    '9': document.getElementById('slider-9'),
+    '27': document.getElementById('slider-27'),
+    '81': document.getElementById('slider-81'),
+};
+
+Object.entries(sliders).forEach(([key, slider]) => {
+    slider.addEventListener('input', () => {
+        const val = parseFloat(slider.value);
+        document.getElementById('status').textContent = `● ${key}-Ebene = ${val.toFixed(1)}`;
+
+        // Zoom kombiniert aus 3 + 27
+        if (key === '3' || key === '27') {
+            const z3 = parseFloat(sliders['3'].value);
+            const z27 = parseFloat(sliders['27'].value);
+            const zoom = 1 + (z3 - 1) * 0.3 + (z27 - 1) * 0.4;
+            grid.style.transform = `scale(${Math.max(0.3, zoom)})`;
+        }
+
+        // Filter aus 9 + 81
+        if (key === '9' || key === '81') {
+            const f9 = parseFloat(sliders['9'].value);
+            const f81 = parseFloat(sliders['81'].value);
+            const blur = (f9 - 1) * 2 + (f81 - 1) * 4;
+            const bright = 1 + (f9 - 1) * 0.2 + (f81 - 1) * 0.4;
+            grid.style.filter = `blur(${Math.max(0, blur)}px) brightness(${Math.max(0.2, bright)})`;
+        }
+    });
+});
+
+// ============================================================
+// 4. KNÖPFE (REAL / RUN / GO / RESET / RUNE.LIST)
+// ============================================================
+const btnReal = document.getElementById('btn-real');
+const btnRun  = document.getElementById('btn-run');
+const btnGo   = document.getElementById('btn-go');
+const btnReset= document.getElementById('btn-reset');
+const btnList = document.getElementById('btn-list');
+const status  = document.getElementById('status');
+
+let realActive = false;
+let runActive  = false;
+let goActive   = false;
+
+btnReal.addEventListener('click', () => {
+    realActive = !realActive;
+    btnReal.classList.toggle('active', realActive);
+    grid.classList.toggle('real-mode', realActive);
+    status.textContent = `● ${realActive ? 'REAL-Modus' : 'idle'}`;
+});
+
+btnRun.addEventListener('click', () => {
+    runActive = !runActive;
+    btnRun.classList.toggle('active', runActive);
+    grid.classList.toggle('run-mode', runActive);
+    status.textContent = `● ${runActive ? 'RUN-Modus' : 'idle'}`;
+});
+
+btnGo.addEventListener('click', () => {
+    goActive = !goActive;
+    btnGo.classList.toggle('active', goActive);
+    status.textContent = `● ${goActive ? 'GO! — System läuft' : 'STOP'}`;
+});
+
+btnReset.addEventListener('click', () => {
+    // Alle Slider auf 1
+    Object.values(sliders).forEach(s => s.value = 1);
+    grid.style.transform = 'scale(1)';
+    grid.style.filter = 'none';
+    grid.classList.remove('real-mode', 'run-mode');
+    btnReal.classList.remove('active');
+    btnRun.classList.remove('active');
+    btnGo.classList.remove('active');
+    realActive = runActive = goActive = false;
+    status.textContent = '● RESET → idle';
+});
+
+btnList.addEventListener('click', () => {
+    const cells = document.querySelectorAll('.cell');
+    let report = 'RUNE.LIST:\n';
+    cells.forEach((c, idx) => {
+        const label = c.querySelector('.label')?.textContent || `#${idx}`;
+        report += `  ${label} → org:${c.dataset.org} arg:${c.dataset.arg}\n`;
+    });
+    alert(report);
+    status.textContent = `● RUNE.LIST → ${cells.length} Einträge`;
+});
+
+// ============================================================
+// 5. TASTATUR-KURZBEFEHLE
+// ============================================================
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'r') btnReal.click();
+    if (e.key === 'u') btnRun.click();
+    if (e.key === 'g') btnGo.click();
+    if (e.key === 'x') btnReset.click();
+    if (e.key === 'l') btnList.click();
+    if (e.key === 'ArrowUp') {
+        sliders['3'].value = Math.min(3, parseFloat(sliders['3'].value) + 0.1);
+        sliders['3'].dispatchEvent(new Event('input'));
+    }
+    if (e.key === 'ArrowDown') {
+        sliders['3'].value = Math.max(0, parseFloat(sliders['3'].value) - 0.1);
+        sliders['3'].dispatchEvent(new Event('input'));
+    }
+});
+
+// ============================================================
+// 6. AUTOMATIK-ZYKLUS (SUPERLAGE)
+// ============================================================
+let autoCycle = true;
+setInterval(() => {
+    if (!autoCycle) return;
+    const zoom = 1 + Math.sin(Date.now() / 3000) * 0.3;
+    grid.style.transform = `scale(${zoom})`;
+    status.textContent = `● SUPERLAGE-Zyklus ${zoom.toFixed(2)}x`;
+}, 3000);
+
+// ============================================================
+// 7. INIT
+// ============================================================
+console.log('⚡ RESPO · SUPERLAGE · 3×11 · INTERAKTIV');
+console.log(`📦 ${FILES.length} Dateien geladen`);
+console.log('⌨️  r=REAL  u=RUN  g=GO  x=RESET  l=RUNE.LIST');
+console.log('⬆️ ⬇️  Zoom');
+
 </script>
-
-</head>
-
-<body>
-
-<h1 style="text-align:center;color:#6cf;padding:10px;">RESPO · SUPERLAGE · 3×11</h1>
-<div id="grid"></div>
-
 </body>
 </html>
