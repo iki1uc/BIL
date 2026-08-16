@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>RESPO · SUPERLAGE · 3×11 Viewer</title>
 
+<link rel="stylesheet" href="16.css">
+
 <style>
 body {
     background:#000;
@@ -39,6 +41,9 @@ body {
 </style>
 
 <script type="module">
+import { move1 } from "./move1.js";
+import { move2 } from "./move2.js";
+import { move3 } from "./move3.js";
 
 async function loadFile(path) {
     try {
@@ -85,6 +90,11 @@ async function start() {
         cell.dataset.arg = i % 3;
         cell.dataset.arg3te = (i % 3) * 0.333;
 
+        // Shuffle‑Dance Moves
+        if (cell.dataset.arg == 0) move1(cell);   // Running-Man
+        if (cell.dataset.arg == 1) move2(cell);   // T-Step
+        if (cell.dataset.arg == 2) move3(cell);   // Glide
+
         grid.appendChild(cell);
         i++;
     }
@@ -96,7 +106,6 @@ async function start() {
 }
 
 start();
-
 </script>
 
 </head>
